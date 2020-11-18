@@ -197,7 +197,12 @@ const handleCmds = async () => {
 
                 case 'r':
                 case 'remote':
-                    
+                    const current_remote = await getCurrent();
+                    const data_remote = await checkRemote('origin');
+                    const ref_remote = data_remote?.refs?.push?.split(':')?.[1];
+                    const url = `https://github.com/${ref_remote}`.replace('.git', '/tree');
+                    console.log(data_remote);
+                    // openBrowser(`${url}/${current_remote}`);
                 break;
             
                 case 'co':
