@@ -64,6 +64,12 @@ const buildChar = (max, char) => {
     return value;
 }
 
+const hasRemote = async () => {
+    const current = await getCurrent();
+    const data = await git.branch();
+    return data.all.includes(`remotes/origin/${current}`);
+}
+
 const handleCmds = async () => {
 
     const isGit = fs.existsSync(`${curdir}/.git`);
@@ -239,20 +245,13 @@ const handleCmds = async () => {
                     })
                 break;
 
-                case 'kk':
-                    const current_kk = await getCurrent();
-                    const data_kk = await checkRemote(current_kk);
-                    lg(current_kk, data_kk);
-                break;
-
                 case '.':
                     if (args[1]) {
                       lg('Adding...');
                       await git.add('./*');
                       lg('Committing...');
                       await git.commit(args[1]);
-                      const current_period = await getCurrent();
-                      const data_period = await checkRemote(current_period);
+                      const data_period = await hasRemote();
                       if (!!data_period) {
                         lg('Pushing...');
                         await git.push();
@@ -331,7 +330,7 @@ const handleCmds = async () => {
                         process.stdout.write(colors.FgGreen);
                         value = ' >';
                     }
-                    lg(value, idx + 1, branch);
+                    if (!branch.includes('remotes/origin')) lg(value, idx + 1, branch);
                     })
             }
         } catch (err) { lg(err) }
