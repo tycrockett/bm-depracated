@@ -245,6 +245,11 @@ const handleCmds = async () => {
                     })
                 break;
 
+                case 'check-remote':
+                    const data_period = await hasRemote();
+                    console.log(data_period);
+                break;
+
                 case '.':
                     if (args[1]) {
                       lg('Adding...');
