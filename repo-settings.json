@@ -1,1 +1,23 @@
-{"/Users/ty.crockett@getweave.com/weave/platform-desktop-client":{"defaultBranch":"dev"},"/Users/ty.crockett@getweave.com/platform-desktop-client":{"defaultBranch":"dev"},"/Users/ty.crockett@getweave.com/go/src/weavelab.xyz/schedule-requests-client":{"defaultBranch":"master"},"/Users/ty.crockett@getweave.com/projects/go/src/weavelab.xyz/schedule-requests-client":{"defaultBranch":"master"},"/Users/ty.crockett@getweave.com/projects/go/src/weavelab.xyz/platform-desktop-client":{"defaultBranch":"dev"},"/Users/ty.crockett@getweave.com/projects/go/src/weavelab.xyz/insys-webapp-wam":{"defaultBranch":"master"},"/Users/ty.crockett@getweave.com/branch-manager":{"defaultBranch":"master"}}
+{
+    "/Users/ty.crockett@getweave.com/weave/platform-desktop-client": {
+        "defaultBranch": "dev"
+    },
+    "/Users/ty.crockett@getweave.com/platform-desktop-client": {
+        "defaultBranch": "dev"
+    },
+    "/Users/ty.crockett@getweave.com/go/src/weavelab.xyz/schedule-requests-client": {
+        "defaultBranch": "master"
+    },
+    "/Users/ty.crockett@getweave.com/projects/go/src/weavelab.xyz/schedule-requests-client": {
+        "defaultBranch": "master"
+    },
+    "/Users/ty.crockett@getweave.com/projects/go/src/weavelab.xyz/platform-desktop-client": {
+        "defaultBranch": "dev"
+    },
+    "/Users/ty.crockett@getweave.com/projects/go/src/weavelab.xyz/insys-webapp-wam": {
+        "defaultBranch": "master"
+    },
+    "/Users/ty.crockett@getweave.com/bm": {
+        "defaultBranch": "master"
+    }
+}

@@ -65,7 +65,7 @@ const buildChar = (max, char) => {
 const handleCmds = async () => {
 
     const isGit = fs.existsSync(`${curdir}/.git`);
-    const settingsDir = `${root}/branch-manager/repo-settings.json`;
+    const settingsDir = `${root}/bm/repo-settings.json`;
     const repoSettingsExists = fs.existsSync(settingsDir);
 
     let repoSettings = {}
@@ -80,7 +80,7 @@ const handleCmds = async () => {
     const CMD = args[0];
     switch (CMD) {
         case 'list':
-            const fileCountDir_list = `${root}/branch-manager/file-count.json`;
+            const fileCountDir_list = `${root}/bm/file-count.json`;
             const fileCountJSON_list = await readFile(fileCountDir_list);
             const fileCount_list = JSON.parse(fileCountJSON_list);
             const data_list = fileCount_list[curdir];
@@ -113,7 +113,7 @@ const handleCmds = async () => {
         case 'cd':
             const dirShorcuts_cd = await getDirShortcuts();
             if (args[1] in dirShorcuts_cd) {
-                const fileCountDir_cd = `${root}/branch-manager/file-count.json`;
+                const fileCountDir_cd = `${root}/bm/file-count.json`;
                 const directory_cd = dirShorcuts_cd[args[1]];
                 const fileCountJSON_cd = await readFile(fileCountDir_cd);
                 const fileCount_cd = JSON.parse(fileCountJSON_cd);
@@ -287,12 +287,23 @@ const handleCmds = async () => {
 
                 break;
 
-                case 'pushup':
+                case 'set':
                     const current_pushup = await getCurrent();
                     lg('Setting upstream...');
-                    await git.push(['--set-upstream', 'origin', current_pushup]);
-                    await git.addRemote(current_pushup);
+                    try {
+                        await git.push(['--set-upstream', 'origin', current_pushup]);
+                        await git.addRemote(current_pushup);
+                    } catch (err) { lg(chalk.hex('#B55')('Couldnt set upstream')) }
                 break;
+
+                case 'github-setup':
+                    if (args[1] && args[2]) {
+                        await git.raw([ 'remote', 'add', 'origin', args[1] ]);
+                        await git.raw([ 'branch', '-M', defaultBranch ]);
+                        await git.raw([ 'push', '-u', 'origin', defaultBranch ]);
+                    } else {
+                        console.log('Add github remote uri')
+                    }
             
                 case '':
                     const data = await git.branch();
