@@ -239,6 +239,12 @@ const handleCmds = async () => {
                     })
                 break;
 
+                case 'kk':
+                    const current_kk = await getCurrent();
+                    const data_kk = await checkRemote(current_kk);
+                    lg(current_kk, data_kk);
+                break;
+
                 case '.':
                     if (args[1]) {
                       lg('Adding...');
