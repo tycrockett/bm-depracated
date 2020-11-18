@@ -2,8 +2,10 @@ const fs = require('fs');
 const simpleGit = require('simple-git/promise');
 const readline = require('readline');
 const chalk = require('chalk');
-const lg = console.log;
 const { format } = require('date-fns');
+const openBrowser = require('open');
+
+const lg = console.log;
 const { 
     colors, 
     column, 
@@ -200,9 +202,11 @@ const handleCmds = async () => {
                     const current_remote = await getCurrent();
                     const data_remote = await checkRemote('origin');
                     const ref_remote = data_remote?.refs?.push?.split(':')?.[1];
-                    const url = `https://github.com/${ref_remote}`.replace('.git', '/tree');
-                    console.log(data_remote);
-                    // openBrowser(`${url}/${current_remote}`);
+                    const defaultCheck = current_remote === defaultBranch ? '' : `/tree/${current_remote}`;
+                    const url = `https://github.com/${ref_remote}`.replace('.git', defaultCheck);
+                    lg();
+                    lg(chalk.hex('#DD5')(url));
+                    openBrowser(url);
                 break;
             
                 case 'co':
@@ -302,12 +306,12 @@ const handleCmds = async () => {
                 break;
 
                 case 'github-setup':
-                    if (args[1] && args[2]) {
+                    if (args[1]) {
                         await git.raw([ 'remote', 'add', 'origin', args[1] ]);
                         await git.raw([ 'branch', '-M', defaultBranch ]);
                         await git.raw([ 'push', '-u', 'origin', defaultBranch ]);
                     } else {
-                        console.log('Add github remote uri')
+                        console.log('This bm CMD needs the github remote uri')
                     }
             
                 case '':
