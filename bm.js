@@ -16,6 +16,7 @@ const {
     getCurrent, 
     checkRemote,
     addColor,
+    hasRemote,
 } = require('./utils');
 
 const root = process.env.BM_PATH;
@@ -64,13 +65,9 @@ const buildChar = (max, char) => {
     return value;
 }
 
-const hasRemote = async () => {
-    const current = await getCurrent();
-    const data = await git.branch();
-    return data.all.includes(`remotes/origin/${current}`);
-}
-
 const handleCmds = async () => {
+
+    const numberVals = new RegExp('^[0-9]+$');
 
     const isGit = fs.existsSync(`${curdir}/.git`);
     const settingsDir = `${root}/bm/repo-settings.json`;
@@ -85,9 +82,12 @@ const handleCmds = async () => {
         isInit = (curdir in repoSettings);
     }
 
+    
+
     const CMD = args[0];
     switch (CMD) {
         case 'list':
+        case 'l':
             const fileCountDir_list = `${root}/bm/file-count.json`;
             const fileCountJSON_list = await readFile(fileCountDir_list);
             const fileCount_list = JSON.parse(fileCountJSON_list);
@@ -143,7 +143,7 @@ const handleCmds = async () => {
             lg();
             if (!repoSettingsExists) await writeFile(settingsDir, {});
             if (!isInit) {
-                const answers = await prompt(['Default Branch? (master)']);
+                const answers = await prompt(['Default Branch (master):']);
                 const defaultBranch = answers[0] || 'master';
                 lg('Initializing...');
                 const settingsJSON = await readFile(settingsDir);
@@ -155,6 +155,7 @@ const handleCmds = async () => {
         case 'settings':
             if (!repoSettingsExists) lg(`Run ${colors.FgYellow}bm init ${colors.Reset} to use bm git commands.`);
             else lg(repoSettings?.[curdir] ?? 'BM Repo does not exist.');
+        break;
         case 'mkdir':
             const check = `${args[1]} () { cd ${curdir}; if [ -z $1 ]; then bm list; fi; if [ -n $1 ]; then bm cd $1; fi; }`
             lg(check);
@@ -193,14 +194,14 @@ const handleCmds = async () => {
                     lg('Deleting local branch...');
                     await git.deleteLocalBranch(current_delete, true);
             
-                    const data_delete = await checkRemote(current_delete);
-                    if (!!data_delete) {
-                        lg('Deleting remote branch...');
-                        await git.push(['origin', '--delete', current_delete])
-                        await git.removeRemote(current_delete)
-                        process.stdout.write(colors.FgGreen);
-                        lg('Done');          
-                    }
+                    // const data_delete = await checkRemote(current_delete);
+                    // if (!!data_delete) {
+                    //     lg('Deleting remote branch...');
+                    //     await git.push(['origin', '--delete', current_delete])
+                    //     await git.removeRemote(current_delete)
+                    //     process.stdout.write(colors.FgGreen);
+                    //     lg('Done');          
+                    // }
                 break;
 
                 case 'r':
@@ -259,7 +260,7 @@ const handleCmds = async () => {
                       const data_period = await hasRemote();
                       if (!!data_period) {
                         lg('Pushing...');
-                        await git.push();
+                        await git.raw([ 'push' ]);
                       }
                     } else {
                       lg('Add a commit description.');
@@ -306,12 +307,11 @@ const handleCmds = async () => {
 
                 break;
 
-                case 'set':
+                case 'pushup':
                     const current_pushup = await getCurrent();
                     lg('Setting upstream...');
                     try {
-                        await git.push(['--set-upstream', 'origin', current_pushup]);
-                        await git.addRemote(current_pushup);
+                        await git.raw(['push', '--set-upstream', 'origin', current_pushup]);
                     } catch (err) { lg(chalk.hex('#B55')('Couldnt set upstream')) }
                 break;
 
@@ -323,6 +323,21 @@ const handleCmds = async () => {
                     } else {
                         console.log('This bm CMD needs the github remote uri')
                     }
+                break;
+
+                case (numberVals.test(CMD) ? CMD : 'NOTHING'):
+                    const idx = parseInt(CMD);
+                    process.stdout.write(colors.FgGreen);
+                    if (idx > 0) {
+                        const data_NUM = await git.branch();
+                        const branch_NUM = data_NUM.all[idx - 1];
+                        lg(`Checkout ${colors.FgWhite}${branch_NUM}...`);
+                        await git.checkout(branch_NUM);
+                    } else {
+                        lg(`Checkout ${colors.FgWhite}${defaultBranch}...`);
+                        await git.checkout(defaultBranch);
+                    }
+                break;
             
                 case '':
                     const data = await git.branch();
@@ -354,7 +369,7 @@ const help = () => {
     console.log(chars);
 
     const helpList = {
-        list: {
+        'list | l': {
             description: `List all directories and shortcuts in current directory.`,
             args: ``},
         cd: {
@@ -378,6 +393,9 @@ const help = () => {
         'pushup': {
             description: `Set upstream remote branch`,
             args: ``},
+        'remote': {
+            description: `Open remote branch in github`,
+            args: ``},
         'delete | d': {
             description: `Deletes current branch.`,
             args: ``},
@@ -390,6 +408,9 @@ const help = () => {
         'log': {
             description: `List commits of current branch ($n changes items to display)`,
             args: `$n`},
+        '[n]': {
+            description: `Checkout n branch (associated to bm CMD with no args)`,
+            args: ``},
 
     }
 

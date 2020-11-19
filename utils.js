@@ -133,11 +133,18 @@ const appendFile = (filename, data) => {
           if (err) return reject(err)
           resolve();
         });
-    }) 
-  }
+    });
+}
+
+const hasRemote = async () => {
+    const current = await getCurrent();
+    const data = await git.branch();
+    return data.all.includes(`remotes/origin/${current}`);
+}
 
 module.exports = {
     column,
+    hasRemote,
     readFile,
     writeFile,
     appendFile,
