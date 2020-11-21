@@ -82,6 +82,11 @@ const handleCmds = async () => {
         isInit = (curdir in repoSettings);
     }
 
+    let flag_verbose = false;
+
+    for (const cmd of args) {
+        if (cmd === '-v' || cmd === '--verbose') flag_verbose = true;
+    }
     
 
     const CMD = args[0];
@@ -93,7 +98,7 @@ const handleCmds = async () => {
             const fileCount_list = JSON.parse(fileCountJSON_list);
             const data_list = fileCount_list[curdir];
             const count_list = data_list ? Object.values(data_list) : [];
-            const maxCount_list = Math.max(...count_list);
+            const maxCount_list = count_list.every((i) => 0) ? 0 : Math.max(...count_list);
             const unique_list = count_list.filter((item, i, ar) => ar.indexOf(item) === i);
             const reColorGradient = Math.min(unique_list.length, colorGradientLen);
             const reColor = (reColorGradient / colorGradientLen) * colorGradientLen;
@@ -106,7 +111,8 @@ const handleCmds = async () => {
                 const dir1 = data_list?.[dirShortcuts_list[a]] || 0;
                 const dir2 = data_list?.[dirShortcuts_list[b]] || 0;
                 return dir1-dir2;
-            })
+            });
+            if (maxCount_list > 0 && !flag_verbose) lg(column(['-v', 'to see more directories...'], 10));
             sorted_list.forEach((sc) => {
                 const dir = dirShortcuts_list[sc];
                 const tmpCount_list = data_list?.[dir] || 0;
@@ -115,7 +121,8 @@ const handleCmds = async () => {
                     const val = parseInt(tmpCount_list / maxCount_list * reColor) || 1;
                     hexColor_list = colorGradient[val];
                 }
-                lg(chalk.rgb(...hexColor_list)(column([sc, dir], 10)));
+                const shouldPrint = flag_verbose || (tmpCount_list > 0 && !flag_verbose) || maxCount_list === 0;
+                if (shouldPrint) lg(chalk.rgb(...hexColor_list)(column([sc, dir], 10)));
             });
         break;
         case 'cd':
@@ -273,6 +280,7 @@ const handleCmds = async () => {
                     await git.checkout(defaultBranch);
                     await git.pull('origin', defaultBranch);
                     await git.checkout(current_update);
+                    await git.raw('merge', defaultBranch);
                 break;
 
                 case 's':
@@ -280,7 +288,6 @@ const handleCmds = async () => {
                     const status = await git.status();
                     console.log();
                     console.log('Changes:');
-                    // console.log(status);
                     if (status?.modified.length) {
                         process.stdout.write(colors.FgCyan);
                         status?.modified.forEach((file) => console.log(`  `, file));
@@ -371,7 +378,7 @@ const help = () => {
     const helpList = {
         'list | l': {
             description: `List all directories and shortcuts in current directory.`,
-            args: ``},
+            args: `Flags: -v, --verbose`},
         cd: {
             description: `Change directory by $shortcut.`,
             args: `$shortcut`},
