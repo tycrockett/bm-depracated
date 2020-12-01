@@ -34,7 +34,7 @@ const addColor = (arr) => {
     process.stdout.write(values);
 }
 
-const column = (arr, width) => {
+const column = (arr, width, spaceChar = ' ') => {
     return arr.reduce((prev, item) => {
       const string = item || '';
       const len = string.length;
@@ -53,7 +53,7 @@ const column = (arr, width) => {
       }, []);
       const space = width - (len - checkLen);
       let spaceValue = '';
-      for (let i = 0; i < space; i++) spaceValue += ' ';
+      for (let i = 0; i < space; i++) spaceValue += spaceChar;
       return `${prev}${string}${spaceValue}`;
     }, '');
   
@@ -100,7 +100,7 @@ const getDirShortcuts = async () => {
 
 const readFile = (dir) => {
     return new Promise((resolve, reject) => 
-        fs.readFile(dir, (err, data) => {
+        fs.readFile(dir, 'utf8', (err, data) => {
         if (err) reject(err);
         resolve(data);
     })

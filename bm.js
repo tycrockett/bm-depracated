@@ -83,9 +83,11 @@ const handleCmds = async () => {
     }
 
     let flag_verbose = false;
+    let flag_branch_off = false;
 
     for (const cmd of args) {
         if (cmd === '-v' || cmd === '--verbose') flag_verbose = true;
+        if (cmd === '--branch-off') flag_branch_off = true;
     }
     
 
@@ -144,7 +146,6 @@ const handleCmds = async () => {
             } else {
                 lg('.');
             }
-            
         break;
         case 'init':
             lg();
@@ -161,13 +162,29 @@ const handleCmds = async () => {
         break;
         case 'settings':
             if (!repoSettingsExists) lg(`Run ${colors.FgYellow}bm init ${colors.Reset} to use bm git commands.`);
-            else lg(repoSettings?.[curdir] ?? 'BM Repo does not exist.');
+            else {
+                if (repoSettings?.[curdir]) {
+                    lg();
+                    lg(curdir);
+                    lg('----------')
+                    Object.entries(repoSettings?.[curdir]).forEach(([key, value]) => {
+                        const settingsKey = chalk.hex('#0FF')(key);
+                        const settingsDes = chalk.hex('#FFF')(value);
+                        lg(column([settingsKey, settingsDes], 25));
+                    });
+                } else lg('BM Repo does not exist.');
+            }
         break;
         case 'mkdir':
-            const check = `${args[1]} () { cd ${curdir}; if [ -z $1 ]; then bm list; fi; if [ -n $1 ]; then bm cd $1; fi; }`
-            lg(check);
-            try { await appendFile('test.txt', check);
+            const check = `${args[1]} () { cd ${curdir}; if [ -z $1 ]; then bm list; fi; if [[ -n $1 ]]; then bm cd $1; fi; }`
+            try {
+                await appendFile(`${root}/bm/dir-shortcuts.bash`, check);
+                lg(`${colors.FgGreen}Created directory ${colors.FgWhite}${args[1]} ${colors.FgGreen}@ ${colors.FgWhite}${curdir}`)
             } catch (err) { lg(err) }
+        break;
+        case 'dirs':
+            const data = await readFile(`${root}/bm/dir-shortcuts.bash`);
+            console.log(data);
         break;
         case 'help': help()
         break;
@@ -181,11 +198,18 @@ const handleCmds = async () => {
                 case 'new':
                     const branchName = args[1];
                     if (branchName) {
-                        lg();
-                        await git.checkout(defaultBranch);
-                        process.stdout.write(colors.FgGreen);
-                        lg(`Updating ${colors.FgWhite}${defaultBranch}...`);
-                        await git.pull('origin', defaultBranch);
+                        const current_new = await getCurrent();
+                        if (flag_branch_off) {
+                            lg();
+                            lg(`${colors.FgGreen}Updating ${colors.FgWhite}${current_new}...`);
+                            await git.pull('origin', current_new);
+                        } else {
+                            lg();
+                            await git.checkout(defaultBranch);
+                            process.stdout.write(colors.FgGreen);
+                            lg(`Updating ${colors.FgWhite}${defaultBranch}...`);
+                            await git.pull('origin', defaultBranch);
+                        }
                         process.stdout.write(colors.FgGreen);
                         lg(`Switching to`, `${colors.Bright}${colors.FgWhite}${branchName}`);
                         await git.checkoutLocalBranch(branchName);
@@ -277,40 +301,59 @@ const handleCmds = async () => {
                 case 'u':
                 case 'update':
                     const current_update = await getCurrent();
-                    await git.checkout(defaultBranch);
+                    const isDefault = current_update === defaultBranch;
+                    if (!isDefault) {
+                        lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${defaultBranch}...`);
+                        await git.checkout(defaultBranch);
+                    }
+                    lg(`${colors.FgGreen}Pull origin ${colors.FgWhite}${defaultBranch}...`);
                     await git.pull('origin', defaultBranch);
-                    await git.checkout(current_update);
-                    await git.raw('merge', defaultBranch);
+                    if (!isDefault) {
+                        lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${current_update}...`);
+                        await git.checkout(current_update);
+                        lg(`${colors.FgGreen}Merge ${colors.FgWhite}${defaultBranch}...`);
+                        await git.raw('merge', defaultBranch);
+                    }
+                    const data_update = await hasRemote();
+                      if (!!data_update && !isDefault) {
+                        lg(`${colors.FgGreen}Pushing ${colors.FgWhite}${current_update}...`);
+                        await git.raw([ 'push' ]);
+                      }
                 break;
 
                 case 's':
                 case 'status':
                     const status = await git.status();
-                    console.log();
-                    console.log('Changes:');
+                    lg();
+                    lg('Changes:');
                     if (status?.modified.length) {
                         process.stdout.write(colors.FgCyan);
-                        status?.modified.forEach((file) => console.log(`  `, file));
+                        status?.modified.forEach((file) => lg(`  `, file));
                         process.stdout.write(colors.Reset);
                     }
                     if (status?.not_added.length) {
                         process.stdout.write(colors.FgCyan);
                         process.stdout.write(colors.Dim);
-                        status.not_added.forEach((file) => console.log(`  `, file));
+                        status.not_added.forEach((file) => lg(`  `, file));
                         process.stdout.write(colors.Reset);
                     }
 
                     if (status?.deleted.length) {
-                        console.log('Deleted:');
+                        lg('Deleted:');
                         process.stdout.write(colors.FgRed);
-                        status?.deleted.forEach((file) => console.log(`  `, file));
+                        status?.deleted.forEach((file) => lg(`  `, file));
                         process.stdout.write(colors.Reset);
                     }
 
                     if (!status?.modified.length &&
                         !status?.not_added.length &&
                         !status?.deleted.length
-                        ) console.log('There are no changes.');
+                        ) lg('There are no changes.');
+                    
+                    if (flag_verbose) {
+                        lg();
+                        lg(status);
+                    }
 
                 break;
 
@@ -369,14 +412,8 @@ const handleCmds = async () => {
 }
 
 const help = () => {
-    const title = 'Branch Manager HELP'
-    const chars = buildChar(title.length, '─')
-    console.log(chars);
-    console.log(title);
-    console.log(chars);
-
     const helpList = {
-        'list | l': {
+        'list, l': {
             description: `List all directories and shortcuts in current directory.`,
             args: `Flags: -v, --verbose`},
         cd: {
@@ -388,13 +425,16 @@ const help = () => {
         settings: {
             description: `Display settings for BM git repo.`,
             args: ``},
-        'new | n': {
+        mkdir: {
+            description: `Create a keyword which can be used to switch to current directory.`,
+            args: ``},
+        'new, n': {
             description: `Updates default branch, creates new $branchName off default.`,
             args: `$branchName`},
-        '.': {
+        '. (period)': {
             description: `Add all files, make commit with $description`,
             args: `$description`},
-        'update | u': {
+        'update, u': {
             description: `Pulls default branch, merges default into current branch`,
             args: ``},
         'pushup': {
@@ -403,13 +443,13 @@ const help = () => {
         'remote': {
             description: `Open remote branch in github`,
             args: ``},
-        'delete | d': {
+        'delete, d': {
             description: `Deletes current branch.`,
             args: ``},
-        'checkout | co': {
+        'checkout, co': {
             description: `Checks out $branchName`,
             args: `$branchName`},
-        'clear | c': {
+        'clear, c': {
             description: `Removes any uncommitted changes.`,
             args: ``},
         'log': {
@@ -424,17 +464,31 @@ const help = () => {
     Object.entries(helpList).forEach(([key, value]) => {
         const displayKey = chalk.hex('#0FF')(key);
         const displayDes = chalk.hex('#FFF')(value.description);
-        lg(column([displayKey, displayDes], 20));
+        if (key === 'list, l') {
+            lg(`${colors.FgYellow}`);
+            lg('BM CMDS');
+            lg('╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮');
+            lg('╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯');
+        }
+        if (key === 'new, n') {
+            lg(`${colors.FgYellow}`);
+            lg('BM GIT CMDS');
+            lg('╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮');
+            lg('╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯');
+        }
+        lg(column([displayKey, displayDes], 20, '.'));
         if (value.args) {
             const displayArgs = chalk.hex('#AAF')(value.args);
             lg(column(['', displayArgs], 20));
-        }
-        lg('__________________________________________________________________________________')
+        } 
     });
-    
-
-
 }
 
+// lg(`│─╮ ╭─╮─╮   ╭─╮ ╭─╮─╮ ╭─│ ╭─╮`);
+// lg(`│─╮ │ │ │   │   │ │ │ │ │ ╰─╮`);
+// lg(`╰─╯ ╰   │   ╰─╯ ╰   │ ╰─╯ ╰─╯`);
+// # ╭─╮
+// # │ │
+// # ╰─╯
 
 handleCmds();
