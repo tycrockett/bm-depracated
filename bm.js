@@ -176,7 +176,7 @@ const handleCmds = async () => {
             }
         break;
         case 'mkdir':
-            const check = `${args[1]} () { cd ${curdir}; if [ -z $1 ]; then bm list; fi; if [[ -n $1 ]]; then bm cd $1; fi; }`
+            const check = `${args[1]} () { cd ${curdir}; if [ -z $1 ]; then bm list; fi; if [[ -n $1 ]]; then bm cd $1; fi; }\n`
             try {
                 await appendFile(`${root}/bm/dir-shortcuts.bash`, check);
                 lg(`${colors.FgGreen}Created directory ${colors.FgWhite}${args[1]} ${colors.FgGreen}@ ${colors.FgWhite}${curdir}`)
