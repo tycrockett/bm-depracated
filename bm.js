@@ -80,19 +80,41 @@ const handleCmds = async () => {
         const repoSettingsJSON = await readFile(settingsDir);
         repoSettings = JSON.parse(repoSettingsJSON);
         isInit = (curdir in repoSettings);
+        process.env.defaultBranch_BM = repoSettings[curdir];
     }
 
     let flag_verbose = false;
     let flag_branch_off = false;
+    let flag_new = false;
+    let flag_edit = false;
 
     for (const cmd of args) {
         if (cmd === '-v' || cmd === '--verbose') flag_verbose = true;
-        if (cmd === '--branch-off') flag_branch_off = true;
+        else if (cmd === '--branch-off' || cmd === '-bo') flag_branch_off = true;
+        else if (cmd === '-n') flag_new = true;
+        else if (cmd === '-e' || cmd === '--edit') flag_edit = true;
     }
     
 
     const CMD = args[0];
     switch (CMD) {
+        case 'cmd':
+            if (flag_new) {
+                console.log(repoSettings[curdir]);
+                const [ shortcut, cmd ] = await prompt([
+                    'CMD Shortcut:',
+                    'CMD:'
+                ]);
+                repoSettings[curdir] = {
+                    ...repoSettings[curdir],
+                    cmds: {
+                        ...repoSettings[curdir]?.cmds || {},
+                        [shortcut]: cmd
+                    }
+                }
+                await writeFile(settingsDir, repoSettings);
+            }
+        break;
         case 'list':
         case 'l':
             const fileCountDir_list = `${root}/bm/file-count.json`;
@@ -163,16 +185,36 @@ const handleCmds = async () => {
         case 'settings':
             if (!repoSettingsExists) lg(`Run ${colors.FgYellow}bm init ${colors.Reset} to use bm git commands.`);
             else {
-                if (repoSettings?.[curdir]) {
-                    lg();
-                    lg(curdir);
-                    lg('----------')
-                    Object.entries(repoSettings?.[curdir]).forEach(([key, value]) => {
-                        const settingsKey = chalk.hex('#0FF')(key);
-                        const settingsDes = chalk.hex('#FFF')(value);
-                        lg(column([settingsKey, settingsDes], 25));
-                    });
-                } else lg('BM Repo does not exist.');
+                if (flag_edit && repoSettings?.[curdir]) {
+                    const answers = await prompt([
+                        `Default Branch (${repoSettings?.[curdir].defaultBranch}):`,
+                        `Default Run Command (${repoSettings?.[curdir]?.defaultRunCMD}):`
+                    ]);
+                    const defaultBranch = answers[0] || repoSettings?.[curdir].defaultBranch;
+                    const defaultRunCMD = answers[1] || '';
+                    const settingsJSON = await readFile(settingsDir);
+                    const settings = JSON.parse(settingsJSON);
+                    const data_init = { 
+                        ...settings,
+                        [curdir]: { 
+                            ...settings?.[curdir] || {},
+                            defaultBranch,
+                            defaultRunCMD
+                        },
+                    };
+                    await writeFile(settingsDir, data_init);
+                } else {
+                    if (repoSettings?.[curdir]) {
+                        lg();
+                        lg(curdir);
+                        lg('----------')
+                        Object.entries(repoSettings?.[curdir]).forEach(([key, value]) => {
+                            const settingsKey = chalk.hex('#0FF')(key);
+                            const settingsDes = chalk.hex('#FFF')(value);
+                            lg(column([settingsKey, settingsDes], 25));
+                        });
+                    } else lg('BM Repo does not exist.');
+                }
             }
         break;
         case 'mkdir':
@@ -217,6 +259,20 @@ const handleCmds = async () => {
                         lg('Need a branch name');
                     }
                 break;
+                case 'compop':
+                    await git.raw([ 'reset', '--hard', 'HEAD^' ]);
+                break;
+                case 'rm-file':
+                    if (args[1]) {
+                        const current_rmFile = await getCurrent();
+                        const hash = await git.raw([ 'merge-base', defaultBranch, current_rmFile])
+                        const newHash = hash.replace(/(\r\n|\n|\r)/gm, "");
+                        await git.raw([ 'checkout', newHash, args[1] ]);
+                        lg('Remember to commit the file removal.');
+                    } else {
+                        lg('Did you forget to add the file to be removed? (relative path)');
+                    }
+                break;
                 case 'd':
                 case 'delete':
                     const current_delete = await getCurrent();
@@ -236,6 +292,10 @@ const handleCmds = async () => {
                 break;
 
                 case 'r':
+                case 'run':
+                    lg(repoSettings[curdir]?.defaultRunCMD);
+                break;
+
                 case 'remote':
                     const current_remote = await getCurrent();
                     const data_remote = await checkRemote('origin');
@@ -252,6 +312,11 @@ const handleCmds = async () => {
                     if (args[1]) await git.checkout(args[1]);
                 break;
 
+                case 'p':
+                case 'pull':
+                    git.raw([ 'pull' ]);
+                break;
+
                 case 'c':
                 case 'clear':
                     await git.add('./*');
@@ -264,13 +329,12 @@ const handleCmds = async () => {
                     const data_log = await git.log(logOptions);
                     lg();
                     data_log.all.forEach((item) => {
-                      lg('----------');
+                      lg();
                       process.stdout.write(colors.FgGreen);
                       process.stdout.write(colors.Bright);
                       lg(item.message);
                       process.stdout.write(colors.Reset);
-                      lg(item.author_name);
-                      lg(format(new Date(item.date), 'MM/dd/yyyy h:mm:ss a'));
+                      lg(item.author_name, '|', format(new Date(item.date), 'MM/dd/yyyy h:mm:ss a'));
                       process.stdout.write(colors.Dim);
                       lg(item.hash);
                       process.stdout.write(colors.Reset);
@@ -301,17 +365,21 @@ const handleCmds = async () => {
                 case 'u':
                 case 'update':
                     const current_update = await getCurrent();
-                    const isDefault = current_update === defaultBranch;
+                    if (flag_branch_off && !args[4]) return console.log('Which branch to branch-off of? ie, bm update --branch-off $branch')
+                    let branch_update = flag_branch_off
+                        ? args[4]
+                        : defaultBranch;
+                    let isDefault = current_update === branch_update;
                     if (!isDefault) {
-                        lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${defaultBranch}...`);
-                        await git.checkout(defaultBranch);
+                        lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${branch_update}...`);
+                        await git.checkout(branch_update);
                     }
-                    lg(`${colors.FgGreen}Pull origin ${colors.FgWhite}${defaultBranch}...`);
-                    await git.pull('origin', defaultBranch);
+                    lg(`${colors.FgGreen}Pull origin ${colors.FgWhite}${branch_update}...`);
+                    await git.pull('origin', branch_update);
                     if (!isDefault) {
                         lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${current_update}...`);
                         await git.checkout(current_update);
-                        lg(`${colors.FgGreen}Merge ${colors.FgWhite}${defaultBranch}...`);
+                        lg(`${colors.FgGreen}Merge ${colors.FgWhite}${branch_update}...`);
                         await git.raw('merge', defaultBranch);
                     }
                     const data_update = await hasRemote();
@@ -321,8 +389,14 @@ const handleCmds = async () => {
                       }
                 break;
 
+                case 'check-it':
+                    const checkIt = await git.raw([ 'rev-list', '--count', `origin/${defaultBranch}...${defaultBranch}` ]);
+                    console.log(checkIt);
+                break;
+
                 case 's':
                 case 'status':
+                    const current_status = await getCurrent();
                     const status = await git.status();
                     lg();
                     lg('Changes:');
@@ -345,15 +419,23 @@ const handleCmds = async () => {
                         process.stdout.write(colors.Reset);
                     }
 
-                    if (!status?.modified.length &&
-                        !status?.not_added.length &&
-                        !status?.deleted.length
-                        ) lg('There are no changes.');
-                    
-                    if (flag_verbose) {
-                        lg();
-                        lg(status);
-                    }
+                    // if (!status?.modified.length &&
+                    //     !status?.not_added.length &&
+                    //     !status?.deleted.length
+                    //     ) {
+
+                    //     }
+                        if (flag_verbose) {
+                            lg();
+                            const data_status = await git.raw([ 'diff', `--name-only`, defaultBranch]);
+                            const data_status_format = data_status.replaceAll(`\n`, `\n   `);
+                            lg(`  `, data_status_format);
+                        }
+                        
+                    // if (flag_verbose) {
+                    //     lg();
+                    //     lg(status);
+                    // }
 
                 break;
 
@@ -394,13 +476,20 @@ const handleCmds = async () => {
                     lg();
                     lg('Branches:');
                     data.all.forEach((branch, idx) => {
-                    const item = data.branches[branch];
-                    let value = '  ';
-                    if (item.current) {
-                        process.stdout.write(colors.FgGreen);
-                        value = ' >';
-                    }
-                    if (!branch.includes('remotes/origin')) lg(value, idx + 1, branch);
+                        process.stdout.write(`${colors.Reset}`);
+                        process.stdout.write(colors.Bright);
+                        const item = data.branches[branch];
+                        let value = ' ';
+                        let color = colors.FgWhite;
+                        if (item.current) {
+                            color = `${colors.Reset}${colors.FgBlack}${colors.BgBlue}`;
+                            value = ' >';
+                        }
+                        if (!branch.includes('remotes/origin')) {
+                            const checked = value;
+                            const index = (idx + 1).toString();
+                            lg(color, column([checked, index, branch], 4));
+                        }
                     })
             }
         } catch (err) { lg(err) }
@@ -428,9 +517,13 @@ const help = () => {
         mkdir: {
             description: `Create a keyword which can be used to switch to current directory.`,
             args: ``},
+        'github-setup': {
+            description: `Set remote branch and connect local branch.`,
+            args: `$github-uri`
+        },
         'new, n': {
             description: `Updates default branch, creates new $branchName off default.`,
-            args: `$branchName`},
+            args: `$branchName -bo --branch-off`},
         '. (period)': {
             description: `Add all files, make commit with $description`,
             args: `$description`},
@@ -467,14 +560,10 @@ const help = () => {
         if (key === 'list, l') {
             lg(`${colors.FgYellow}`);
             lg('BM CMDS');
-            lg('╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮');
-            lg('╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯');
         }
         if (key === 'new, n') {
             lg(`${colors.FgYellow}`);
             lg('BM GIT CMDS');
-            lg('╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮╭─╮');
-            lg('╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯╰─╯');
         }
         lg(column([displayKey, displayDes], 20, '.'));
         if (value.args) {
@@ -491,4 +580,8 @@ const help = () => {
 // # │ │
 // # ╰─╯
 
-handleCmds();
+try {
+    handleCmds();
+} catch (err) {
+    console.log(err);
+}

@@ -4,7 +4,14 @@ bm () {
         return=$(node ~/bm/bm.js "$1" "$2" "$3" "$4")
         cd $return
     else
-        node ~/bm/bm.js "$1" "$2" "$3" "$4";
+
+        if [[ $1 == "r" || $1 == "run" ]]; then
+            cmd=$(node ~/bm/bm.js "$1" "$2" "$3" "$4")
+            eval "$cmd"
+        else
+            node ~/bm/bm.js "$1" "$2" "$3" "$4";
+        fi
+
     fi
 
     if [[ $1 == "mkdir" ]]; then
@@ -12,6 +19,10 @@ bm () {
             source ~/bm/dir-shortcuts.bash
         fi
     fi
+}
+
+cmd () {
+    bm cmd "$1" "$2" "$3" "$4" "$5"
 }
 
 if [[ -e ~/bm/dir-shortcuts.bash ]]; then

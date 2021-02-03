@@ -1,9 +1,11 @@
 const fs = require('fs');
 const simpleGit = require('simple-git/promise');
 const { colors, addColor, getCurrent, hasRemote } = require('./utils');
+const { readFile } = require('./utils.js');
 
 global.git = simpleGit();
-
+// ⚑
+let defaultBranch = process.env.defaultBranch_BM;
 const root = process.env.BM_PATH;
 const curdir = process.cwd();
 const bashCurdir = curdir.replace(root, '~');
@@ -18,7 +20,22 @@ const buildPrompt = async () => {
     addColor([ 'Bright', 'FgBlue' ]);
     let line1 = `╭─ ${colors.Reset}${colors.FgWhite}${colors.Bright}${directory} ${colors.Bright}${colors.FgBlue}|│ COLOR-CHECK${gitBranchValue}`;
     let line2 = '';
+    let changeCount;
     if (isGit) {
+        if (!defaultBranch) {
+            const settingsDir = `${root}/bm/repo-settings.json`;
+            const repoSettingsExists = fs.existsSync(settingsDir);
+            if (repoSettingsExists) {
+                const repoSettingsJSON = await readFile(settingsDir);
+                repoSettings = JSON.parse(repoSettingsJSON);
+                isInit = (curdir in repoSettings);
+                const { defaultBranch: dBranch } = repoSettings?.[curdir] || {
+                    defaultBranch: ''
+                };
+                process.env.defaultBranch_BM = dBranch;
+                defaultBranch = dBranch;
+            }
+        }
         const branchCheck = await hasRemote();
         if (branchCheck) line1 = line1.replace('COLOR-CHECK', colors.FgCyan);
         const status = await git.status()
@@ -28,8 +45,18 @@ const buildPrompt = async () => {
         const modifiedLn = modified.length ? `${colors.Reset}${colors.Bright}${colors.FgCyan} ${modified.length}M ` : '';
         const createdLn = created.length ? `${colors.Reset}${colors.Bright}${colors.FgGreen} ${created.length}C ` : '';
         const deletedLn = deleted.length ? `${colors.Reset}${colors.Bright}${colors.FgRed} ${deleted.length}D ` : '';
-        const data = !!createdLn || !!deletedLn || !!notAddedLn || !!modifiedLn;
-        line2 = data ? ` ${startLn}${createdLn}${deletedLn}${notAddedLn}${modifiedLn}` : '';
+        try {
+            changeCount = defaultBranch
+                ? await git.raw([ 'rev-list', '--count', `origin/${defaultBranch}...${defaultBranch}` ]) 
+                : 0;
+                
+                // const value = await git.raw([ 'diff', `origin/${defaultBranch}`, defaultBranch ]);
+                // console.log('defaultBranch', defaultBranch, !!defaultBranch);
+                // console.log('value:', value);
+            } catch { changeCount = 0 }
+        const hasChangeCount = changeCount > 0 ? `${colors.Reset}${colors.FgGreen}${colors.Bright}⚑ ${changeCount}` : '';
+        const data = !!createdLn || !!deletedLn || !!notAddedLn || !!modifiedLn || !!hasChangeCount;
+        line2 = data ? ` ${startLn}${createdLn}${deletedLn}${notAddedLn}${modifiedLn} ${hasChangeCount}` : '';
     }
 
     const line3 = `\n${colors.Reset}${colors.FgBlue}${colors.Bright}╰│| ${colors.Reset}`
