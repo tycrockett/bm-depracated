@@ -287,7 +287,9 @@ const handleCmds = async () => {
                 break;
 
                 case 'trim-ignore':
+                    console.log('Trimming...');
                     await git.raw(['rm', '-r', '--cached', '.']);
+                    console.log('Committing...');
                     await git.raw(['add', '.']);
                     await git.raw(['commit', '-m', '"Untrack files in .gitignore']);
                 break;
