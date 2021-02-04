@@ -7,6 +7,7 @@ bm () {
 
         if [[ $1 == "r" || $1 == "run" ]]; then
             cmd=$(node ~/bm/bm.js "$1" "$2" "$3" "$4")
+            echo $cmd
             eval "$cmd"
         else
             node ~/bm/bm.js "$1" "$2" "$3" "$4";

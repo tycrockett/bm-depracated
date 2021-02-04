@@ -259,9 +259,11 @@ const handleCmds = async () => {
                         lg('Need a branch name');
                     }
                 break;
+
                 case 'compop':
                     await git.raw([ 'reset', '--hard', 'HEAD^' ]);
                 break;
+
                 case 'rm-file':
                     if (args[1]) {
                         const current_rmFile = await getCurrent();
@@ -273,6 +275,7 @@ const handleCmds = async () => {
                         lg('Did you forget to add the file to be removed? (relative path)');
                     }
                 break;
+
                 case 'd':
                 case 'delete':
                     const current_delete = await getCurrent();
@@ -280,15 +283,12 @@ const handleCmds = async () => {
                     process.stdout.write(colors.FgRed);
                     lg('Deleting local branch...');
                     await git.deleteLocalBranch(current_delete, true);
-            
-                    // const data_delete = await checkRemote(current_delete);
-                    // if (!!data_delete) {
-                    //     lg('Deleting remote branch...');
-                    //     await git.push(['origin', '--delete', current_delete])
-                    //     await git.removeRemote(current_delete)
-                    //     process.stdout.write(colors.FgGreen);
-                    //     lg('Done');          
-                    // }
+        
+                break;
+
+                case 'test':
+                    lg('TEST')
+                    lg(repoSettings);
                 break;
 
                 case 'r':
@@ -312,7 +312,7 @@ const handleCmds = async () => {
                     if (args[1]) await git.checkout(args[1]);
                 break;
 
-                case 'p':
+                case 'pl':
                 case 'pull':
                     git.raw([ 'pull' ]);
                 break;
@@ -389,7 +389,7 @@ const handleCmds = async () => {
                       }
                 break;
 
-                case 'check-it':
+                case 'checkit':
                     const checkIt = await git.raw([ 'rev-list', '--count', `origin/${defaultBranch}...${defaultBranch}` ]);
                     console.log(checkIt);
                 break;
