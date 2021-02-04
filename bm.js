@@ -286,6 +286,12 @@ const handleCmds = async () => {
         
                 break;
 
+                case 'trim-ignore':
+                    await git.raw(['rm', '-r', '--cached', '.']);
+                    await git.raw(['add', '.']);
+                    await git.raw(['commit', '-m', '"Untrack files in .gitignore']);
+                break;
+
                 case 'test':
                     lg('TEST')
                     lg(repoSettings);
