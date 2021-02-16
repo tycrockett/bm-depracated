@@ -94,7 +94,6 @@ const handleCmds = async () => {
         else if (cmd === '-n') flag_new = true;
         else if (cmd === '-e' || cmd === '--edit') flag_edit = true;
     }
-    
 
     const CMD = args[0];
     switch (CMD) {
@@ -115,6 +114,7 @@ const handleCmds = async () => {
                 await writeFile(settingsDir, repoSettings);
             }
         break;
+
         case 'list':
         case 'l':
             const fileCountDir_list = `${root}/bm/file-count.json`;
@@ -164,6 +164,10 @@ const handleCmds = async () => {
                         [directory_cd]: count_cd 
                 }}
                 await writeFile(fileCountDir_cd, data_cd);
+                const newCurdir = `${curdir}/${directory_cd}`;
+                if (newCurdir in repoSettings) {
+                    process.env.defaultBranch_BM = repoSettings[curdir];
+                }
                 lg(directory_cd);
             } else {
                 lg('.');
@@ -294,6 +298,29 @@ const handleCmds = async () => {
                     await git.raw(['commit', '-m', '"Untrack files in .gitignore']);
                 break;
 
+                case 'f':
+                case 'fetch':
+                    await git.raw(['fetch']);
+                break;
+
+                case 'rename':
+                case 'rn':
+                    if (args[1]) {
+                        const current_rename = await getCurrent();
+                        const rename_arg = args[1];
+                        await git.raw([ 'branch', '-m', rename_arg ]);
+                        const rename_has_remote = await hasRemote();
+                        if (rename_has_remote) {
+                            await git.raw([ 'push', 'origin', `:${current_rename}`, rename_arg ]);
+                            await git.raw([ 'push', 'origin', `-u`, rename_arg ]);
+                        }
+                    }
+                break;
+
+                case 'reset-head':
+                    git.raw([ 'reset', '--hard', `origin/${defaultBranch}` ]);
+                break;
+                
                 case 'test':
                     lg('TEST')
                     lg(repoSettings);
@@ -373,10 +400,11 @@ const handleCmds = async () => {
                 case 'u':
                 case 'update':
                     const current_update = await getCurrent();
-                    if (flag_branch_off && !args[4]) return console.log('Which branch to branch-off of? ie, bm update --branch-off $branch')
+                    if (flag_branch_off && !args[2]) return console.log('Which branch to branch-off of? ie, bm update --branch-off $branch')
                     let branch_update = flag_branch_off
-                        ? args[4]
+                        ? args[2]
                         : defaultBranch;
+
                     let isDefault = current_update === branch_update;
                     if (!isDefault) {
                         lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${branch_update}...`);
@@ -388,7 +416,7 @@ const handleCmds = async () => {
                         lg(`${colors.FgGreen}Checkout ${colors.FgWhite}${current_update}...`);
                         await git.checkout(current_update);
                         lg(`${colors.FgGreen}Merge ${colors.FgWhite}${branch_update}...`);
-                        await git.raw('merge', defaultBranch);
+                        await git.raw('merge', branch_update);
                     }
                     const data_update = await hasRemote();
                       if (!!data_update && !isDefault) {

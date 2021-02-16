@@ -5,14 +5,27 @@ const { readFile } = require('./utils.js');
 
 global.git = simpleGit();
 // ⚑
-let defaultBranch = process.env.defaultBranch_BM;
-const root = process.env.BM_PATH;
-const curdir = process.cwd();
-const bashCurdir = curdir.replace(root, '~');
-const splitDir = bashCurdir.split('/');
-const len = splitDir.length;
 
 const buildPrompt = async () => {
+    const root = process.env.BM_PATH;
+    const curdir = process.cwd();
+    const bashCurdir = curdir.replace(root, '~');
+    const splitDir = bashCurdir.split('/');
+    const len = splitDir.length;
+    
+    const settingsDir = `${root}/bm/repo-settings.json`;
+    const repoSettingsExists = fs.existsSync(settingsDir);
+
+    let repoSettings = {}
+    let defaultBranch = '';
+    
+    if (repoSettingsExists) {
+        const repoSettingsJSON = await readFile(settingsDir);
+        repoSettings = JSON.parse(repoSettingsJSON);
+        defaultBranch = repoSettings[curdir]?.defaultBranch || '';
+        process.env.defaultBranch_BM = defaultBranch;
+    }
+
     const directory = splitDir[len-1];
     const isGit = fs.existsSync(`${curdir}/.git`);
     const gitBranch = isGit ? await getCurrent() : '';
@@ -49,14 +62,10 @@ const buildPrompt = async () => {
             changeCount = defaultBranch
                 ? await git.raw([ 'rev-list', '--count', `origin/${defaultBranch}...${defaultBranch}` ]) 
                 : 0;
-                
-                // const value = await git.raw([ 'diff', `origin/${defaultBranch}`, defaultBranch ]);
-                // console.log('defaultBranch', defaultBranch, !!defaultBranch);
-                // console.log('value:', value);
-            } catch { changeCount = 0 }
+        } catch { changeCount = 0 }
         const hasChangeCount = changeCount > 0 ? `${colors.Reset}${colors.FgGreen}${colors.Bright}⚑ ${changeCount}` : '';
         const data = !!createdLn || !!deletedLn || !!notAddedLn || !!modifiedLn || !!hasChangeCount;
-        line2 = data ? ` ${startLn}${createdLn}${deletedLn}${notAddedLn}${modifiedLn} ${hasChangeCount}` : '';
+        line2 = data ? ` ${startLn}${createdLn}${deletedLn}${notAddedLn}${modifiedLn} ${hasChangeCount}`: '';
     }
 
     const line3 = `\n${colors.Reset}${colors.FgBlue}${colors.Bright}╰│| ${colors.Reset}`
@@ -66,7 +75,6 @@ const buildPrompt = async () => {
 }
 
 buildPrompt();
-
 
 // # ╭─╮
 // # │ │
