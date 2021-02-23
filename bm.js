@@ -436,6 +436,8 @@ const handleCmds = async () => {
                     const status = await git.status();
                     lg();
                     lg('Changes:');
+                    const shortStat_status = await git.raw('diff', '--shortstat', defaultBranch);
+                    console.log(shortStat_status);
                     if (status?.modified.length) {
                         process.stdout.write(colors.FgCyan);
                         status?.modified.forEach((file) => lg(`  `, file));
@@ -461,12 +463,12 @@ const handleCmds = async () => {
                     //     ) {
 
                     //     }
-                        if (flag_verbose) {
-                            lg();
-                            const data_status = await git.raw([ 'diff', `--name-only`, defaultBranch]);
-                            const data_status_format = data_status.replaceAll(`\n`, `\n   `);
-                            lg(`  `, data_status_format);
-                        }
+                    if (flag_verbose) {
+                        lg();
+                        const data_status = await git.raw([ 'diff', `--name-only`, defaultBranch]);
+                        const data_status_format = data_status.replaceAll(`\n`, `\n   `);
+                        lg(`  `, data_status_format);
+                    }
                         
                     // if (flag_verbose) {
                     //     lg();

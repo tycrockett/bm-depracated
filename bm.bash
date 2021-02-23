@@ -1,5 +1,6 @@
 
 bm () {
+
     if [[ $1 == "cd" ]]; then
         return=$(node ~/bm/bm.js "$1" "$2" "$3" "$4")
         cd $return

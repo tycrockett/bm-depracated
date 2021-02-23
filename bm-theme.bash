@@ -1,4 +1,5 @@
 function prompt_command() {
+    node ~/bm/handle-fetch.js
     directory=$(node ~/bm/theme.js)
     PS1=$directory
 }

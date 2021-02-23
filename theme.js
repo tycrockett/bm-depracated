@@ -63,7 +63,7 @@ const buildPrompt = async () => {
                 ? await git.raw([ 'rev-list', '--count', `origin/${defaultBranch}...${defaultBranch}` ]) 
                 : 0;
         } catch { changeCount = 0 }
-        const hasChangeCount = changeCount > 0 ? `${colors.Reset}${colors.FgGreen}${colors.Bright}⚑ ${changeCount}` : '';
+        const hasChangeCount = changeCount > 0 ? `${colors.Reset}${colors.FgGreen}${colors.Bright}⚑` : '';
         const data = !!createdLn || !!deletedLn || !!notAddedLn || !!modifiedLn || !!hasChangeCount;
         line2 = data ? ` ${startLn}${createdLn}${deletedLn}${notAddedLn}${modifiedLn} ${hasChangeCount}`: '';
     }
